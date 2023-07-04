@@ -1,5 +1,6 @@
 from openpyxl import load_workbook
 from openpyxl import Workbook
+from copy import copy
 
 datas = []
 imported_workbooks = []
@@ -74,6 +75,10 @@ def get_columns_by_filetype(first_one, filetype):
         return []
 
 
+def get_column_name_by_index(index):
+    column_names = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+    return column_names[index-1]
+
 def export_file_by_filetype(filename, selected_column, seperate_conditions, filetype):
     #filename：导出文件的名称
     #selected_column：选择导出的列
@@ -82,25 +87,53 @@ def export_file_by_filetype(filename, selected_column, seperate_conditions, file
         new_excel = Workbook()
         sheet = new_excel.active
         sheet.title = "Sheet1"
+
+        first_one = datas[0]
+        old_excel = load_workbook(filename=first_one["filename"])
+        selected_sheet_index = first_one["selected"]
+        old_sheet = old_excel.get_sheet_by_name(old_excel.sheetnames[selected_sheet_index])
+        #复制列宽和行高
+        
+        
+        #列计数，保证选中的列从最左边开始排
+        column_num = 1
         for i in range (len(selected_column)-1):
             if selected_column[i] == 1:
-                sheet.cell(1, i+1).value = column_titles[i]
-                sheet.cell(2, i+1).value = columns_name[i]
+                copy_cell_value_and_all_style(old_sheet.cell(1, i+1), sheet.cell(1, column_num))
+                copy_cell_value_and_all_style(old_sheet.cell(2, i+1), sheet.cell(2, column_num))
+                sheet.column_dimensions[get_column_name_by_index(column_num)].width = old_sheet.column_dimensions[get_column_name_by_index(i+1)].width
+                column_num +=  1
+        #从第三行开始输出数据
         index = 3
         for excel in datas:
             wb = load_workbook(filename=excel["filename"])
             sh = wb.get_sheet_by_name(wb.sheetnames[excel["selected"]])
             rows = list(sh.rows)
             for row in rows[2:]:
+                #列计数，保证选中的列从最左边开始排
+                column_num = 1
                 for i in range (len(selected_column)-1):
                     if selected_column[i] == 1:
-                        sheet.cell(index, i+1).value = row[i].value
+                        copy_cell_value_and_all_style(row[i], sheet.cell(index, column_num))
+                        column_num += 1
                 index += 1
+        
+        sheet.row_dimensions[1].height = old_sheet.row_dimensions[1].height
+
         new_excel.save(filename)
         return "导出成功！" 
     
     elif filetype == "xls":
         return "导出成功！"
+
+def copy_cell_value_and_all_style(target, copy_cell):
+    copy_cell.value = target.value
+    copy_cell.font = copy(target.font)
+    copy_cell.fill = copy(target.fill)
+    copy_cell.alignment = copy(target.alignment)
+    copy_cell.border = copy(target.border)
+    copy_cell.number_format = copy(target.number_format)
+    copy_cell.hyperlink = copy(target.hyperlink)
 
 if __name__ == "__main__":
     filenames = ('D:/Windows数据移动到此文件夹/Desktop/测试用例导出.xlsx', 'D:/Windows数据移动到此文件夹/Desktop/测试用例导出 - 副本.xlsx')
